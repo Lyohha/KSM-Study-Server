@@ -1,0 +1,31 @@
+version: '3.4'
+
+services:
+    nginx:
+        restart: always
+        image: nginx:latest
+        container_name: nginx_main
+        ports:
+            - "80:80"
+            - "443:443"
+        volumes:
+            - ./config:/etc/nginx/conf.d
+            - www:/var/www/certbot/:ro
+            - certs:/etc/nginx/ssl/:ro
+        networks:
+            default:
+
+    certbot:
+        image: certbot/certbot:latest
+        volumes:
+            - www:/var/www/certbot/:rw
+            - certs:/etc/letsencrypt/:rw
+
+
+networks:
+    default:
+        driver: bridge
+
+volumes:
+    certs:
+    www:

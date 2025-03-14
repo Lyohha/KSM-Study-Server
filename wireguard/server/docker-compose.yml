@@ -1,0 +1,27 @@
+version: '3.4'
+services:
+    wireguard:
+        image: lscr.io/linuxserver/wireguard
+        container_name: student_vpn_config
+        cap_add:
+            - NET_ADMIN
+            - SYS_MODULE
+        environment:
+            - PUID=1000
+            - PGID=1000
+            - TZ=Europe/Kiev
+            - SERVERURL=<domain>
+            - SERVERPORT=9205 #optional
+            # - PEERS=10 #optional
+            - PEERDNS=8.8.8.8 #optional
+            - INTERNAL_SUBNET=10.0.1.0/24 #optional
+            - ALLOWEDIPS=10.0.1.0/24 #optional
+        volumes:
+            # - ./wg_temp_config:/config
+            - ./config:/config
+            # - /lib/modules:/lib/modules
+        ports:
+            - 9205:51820/udp
+        sysctls:
+            - net.ipv4.conf.all.src_valid_mark=1
+        restart: unless-stopped
