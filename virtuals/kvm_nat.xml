@@ -1,0 +1,5 @@
+<network>
+    <name>kvm_nat</name>
+    <forward mode="bridge" />
+    <bridge name="nat1" />
+</network>

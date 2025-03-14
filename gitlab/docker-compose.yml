@@ -1,0 +1,94 @@
+version: '3.4'
+
+services:
+  gitlab_web:
+    image: 'gitlab/gitlab-ce:latest'
+    restart: always
+    profiles: ['main', 'gitlab']
+    hostname: 'gitlab.ksm.dev.ua'
+    environment:
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url 'http://gitlab.ksm.dev.ua'
+        registry_external_url 'http://glregistry.ksm.dev.ua'
+        gitlab_rails['gitlab_shell_ssh_port'] = 8222
+        gitlab_rails['registry_enabled'] = true
+        registry['enable'] = true
+        registry_nginx['enable'] = true
+        registry_nginx['listen_https'] = false
+        registry_nginx['client_max_body_size'] = 0
+        nginx['enable'] = true
+        nginx['listen_port'] = 80
+        nginx['listen_https'] = false
+        # set root password on start
+        gitlab_rails['initial_root_password'] = 'root_password'
+        nginx['client_max_body_size'] = 0
+
+        #gitlab_rails['gitlab_port'] = 8201
+        #gitlab_rails['registry_host'] = "glregistry.ksm.dev.ua"
+        #gitlab_rails['registry_port'] = "5005"
+        #gitlab_rails['registry_api_url'] = "https://glregistry.ksm.dev.ua:5000"
+        #gitlab_rails['registry_http_addr'] = "glregistry.gitlab.ksm.dev.ua:5000"
+        #registry['registry_http_addr'] = "glregistry.ksm.dev.ua:5000"
+        #registry_nginx['listen_port'] = 80
+    ports:
+      - "5000:5000"
+      - "8222:22"
+    volumes:
+      - './gitlab/config:/etc/gitlab'
+      - './gitlab/logs:/var/log/gitlab'
+      - './gitlab/data:/var/opt/gitlab'
+    networks:
+        nginx:
+        gitlab:
+
+
+  gitlab_runner:
+    image: gitlab/gitlab-runner:latest
+    restart: always
+    profiles: ['main']
+    depends_on:
+      - gitlab_web
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - gitlab_runner:/etc/gitlab-runner
+    networks:
+      gitlab:
+
+
+  gl_runner_register:
+        image: gitlab/gitlab-runner:latest
+        profiles: ['register']
+        volumes:
+            - /var/run/docker.sock:/var/run/docker.sock
+            - gitlab_runner:/etc/gitlab-runner
+        environment:
+            # Set runner token
+            - REGISTRATION_TOKEN=gitlab_runner_token
+            - CI_SERVER_URL=http://gitlab_web
+        command:
+            - register
+            - --non-interactive
+            - --locked=false
+            # Runner name
+            - --name="Main Runner"
+            - --executor=docker
+            # Url to gitlab server
+            - --url=http://gitlab_web
+            - --clone-url=http://gitlab.ksm.dev.ua
+            - --docker-image=docker:20-dind
+            - --docker-volumes=/var/run/docker.sock:/var/run/docker.sock
+            # custom network for runner
+            - --docker-network-mode=gitlab_gitlab
+        networks:
+            gitlab:
+
+
+networks:
+    nginx:
+        name: nginx_default
+        external: true
+    gitlab:
+        driver: bridge
+
+volumes:
+    gitlab_runner:
