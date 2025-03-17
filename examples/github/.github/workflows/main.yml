@@ -1,0 +1,63 @@
+name: "Build and deploy"
+
+on:
+  pull_request:
+    branches:
+      - main
+  # push:
+  #   branches:
+  #     - main
+
+jobs:
+  artifact:
+    name: Artifact
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout and login
+        uses: actions/checkout@v3
+      
+      - name: Create artifact
+        uses: vimtor/action-zip@v1.2
+        with:
+          files: .
+          dest: artifact.zip
+      
+      - name: Create Release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "artifact.zip"
+          tag: 2024-1.0.0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+
+  docker:
+    needs: artifact
+    name: Push to registry
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout and login
+        uses: actions/checkout@v3
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: ${{ github.sha }}
+          # tags: latest
+    
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io  # GitHub Container Registry
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}

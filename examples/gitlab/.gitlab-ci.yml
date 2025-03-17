@@ -1,0 +1,91 @@
+Build server:
+  stage: build
+  image: docker:latest
+  when: manual
+  services:
+    - docker:dind
+  script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker pull $CI_REGISTRY_IMAGE:test-latest || true
+    - docker build --cache-from $CI_REGISTRY_IMAGE:test-latest --tag $CI_REGISTRY_IMAGE:test-latest --tag $CI_REGISTRY_IMAGE:test-$CI_COMMIT_SHA -f ./Dockerfile .
+    - docker push $CI_REGISTRY_IMAGE:test-$CI_COMMIT_SHA
+    - docker push $CI_REGISTRY_IMAGE:test-latest
+  only:
+    - master
+    - dev
+    - main
+
+Create Zip Archive:
+  stage: build
+  image: alpine
+  when: manual
+  before_script:
+    - apk add --update zip
+  script:
+    - zip -r source.zip ./
+  artifacts:
+    paths:
+      - source.zip
+  only:
+    - main
+
+Create Zip Archive Package:
+  stage: build
+  image: alpine
+  when: manual
+  before_script:
+    - apk add --update zip curl
+  script:
+    - zip -r source.zip ./
+    - 'curl 
+        --header "JOB-TOKEN: $CI_JOB_TOKEN"
+        --upload-file source.zip
+        "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/Source/1.0.2/source.zip"'
+  # get version from tag
+  # only:
+  #   variables:
+  #     - $CI_COMMIT_TAG =~ /^\d+.\d+.\d+*$/
+  only:
+    - main
+
+Deploy as files:
+  stage: deploy
+  when: manual
+  image: alpine
+  before_script:
+    - mkdir -p ~/.ssh
+    - apk add openssh-client
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostkeyChecking no\n\n" > ~/.ssh/config'
+    - ssh-keyscan $SSH_SERVER >> ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+    - chmod 700 ~/.ssh
+    - ssh $SSH_USER@$SSH_SERVER "rm -rf $WORK_DIR/*"
+  script:
+    - scp -r . $SSH_USER@$SSH_SERVER:$WORK_DIR
+    # git pull version
+    # - ssh $SSH_USER@$SSH_SERVER -tt "cd $WORK_DIR && git checkout main && git pull && exit"
+  only:
+    - main
+
+Deploy docker container:
+  stage: deploy
+  when: manual
+  image: docker:latest
+  services:
+    - docker:dind
+  before_script:
+    - mkdir -p ~/.ssh
+    - apk add openssh-client
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostkeyChecking no\n\n" > ~/.ssh/config'
+    - ssh-keyscan $SSH_SERVER >> ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+    - chmod 700 ~/.ssh
+  script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker-compose -H "ssh://$SSH_USER@$SSH_SERVER" down --remove-orphans
+    - docker-compose -H "ssh://$SSH_USER@$SSH_SERVER" pull
+    - docker-compose -H "ssh://$SSH_USER@$SSH_SERVER" up -d
