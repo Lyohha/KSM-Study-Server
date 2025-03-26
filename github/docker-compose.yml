@@ -1,0 +1,17 @@
+version: '3.4'
+
+services:
+    runner:
+        # restart: always
+        build: .
+        container_name: github_runner
+        environment:
+            GH_TOKEN: "<Personal user token>"
+            GH_OWNER: "<GitHub username>"
+            GH_REPOSITORY: "<GitHub repository name>"
+        volumes:
+            - /var/run/docker.sock:/var/run/docker.sock
+            - /home/ghuser/actions-runner/_work:/home/ghuser/actions-runner/_work
+        group_add:
+            - ${GH_DOCKER_GROUP_ID}
+        # user: "${GH_DOCKER_USER_ID}:${GH_DOCKER_GROUP_ID}"
