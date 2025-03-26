@@ -1,5 +1,9 @@
 name: "Build and deploy"
 
+# SSH_SERVER - VPS server address
+# SSH_USER - VPS user
+# SSH_PRIVATE_KEY - private key for VPS user on VPS server
+
 on:
   pull_request:
     branches:
@@ -61,3 +65,55 @@ jobs:
           context: .
           push: true
           tags: ${{ steps.meta.outputs.tags }}
+
+  deploy:
+    name: Deploy
+    needs: docker
+    runs-on: [self-hosted]
+
+    steps:
+      - name: Checkout and login
+        uses: actions/checkout@v3
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ghcr.io/${{ github.repository }}
+          # tags: ${{ github.sha }}
+          tags: latest
+      
+      - name: Set env
+        run: echo "GH_REGISTRY_IMAGE=${{ steps.meta.outputs.tags }}" >> $GITHUB_ENV
+      
+      - name: Remote auth in docker registry and fill env
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_SERVER }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            docker login -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }} ghcr.io
+            rm -rf ${{ github.event.repository.name }}
+            mkdir ${{ github.event.repository.name }}
+            echo "GH_REGISTRY_IMAGE=${{ steps.meta.outputs.tags }}" >> ${{ github.event.repository.name }}/.env
+      
+      - name: Copy docker compose file
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_SERVER }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "docker-compose.yml"
+          target: ${{ github.event.repository.name }}
+      
+      - name: Stop previous docker compose file and start new
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_SERVER }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            docker compose -f "${{ github.event.repository.name }}/docker-compose.yml" down --remove-orphans
+            docker compose -f "${{ github.event.repository.name }}/docker-compose.yml" pull
+            docker compose -f "${{ github.event.repository.name }}/docker-compose.yml" up -d
