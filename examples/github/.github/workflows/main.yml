@@ -117,3 +117,30 @@ jobs:
             docker compose -f "${{ github.event.repository.name }}/docker-compose.yml" down --remove-orphans
             docker compose -f "${{ github.event.repository.name }}/docker-compose.yml" pull
             docker compose -f "${{ github.event.repository.name }}/docker-compose.yml" up -d
+
+  deployfiles:
+    name: Deploy (files copy method)
+    runs-on: [self-hosted]
+
+    steps:
+      - name: Checkout and login
+        uses: actions/checkout@v3
+
+      - name: Remove outdated files
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_SERVER }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            rm -rf ${{ vars.WORK_DIR }}
+            mkdir -p ${{ vars.WORK_DIR }}
+      
+      - name: Copy files
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_SERVER }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "."
+          target: ${{ vars.WORK_DIR }}
