@@ -1,0 +1,20 @@
+# Install apache2
+- name: Install apache
+  apt:
+    name: apache2
+    state: present
+    update_cache: yes
+
+- name: Add index file
+  template:
+    src: index.j2
+    dest: /var/www/html/index.html
+
+- name: Add another files
+  template:
+    src: file.j2
+    dest: /var/www/html/{{item.name}}.html
+  loop: "{{ files }}"
+  notify:
+  - apache reload
+  - notify msg

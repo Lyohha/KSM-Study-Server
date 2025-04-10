@@ -1,0 +1,20 @@
+#cloud-config
+ssh_pwauth: True
+hostname: tfvm
+chpasswd:
+  list: |
+     student:password1
+  expire: False
+users:
+  - name: student
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    groups: users, admin
+    home: /home/student
+    shell: /bin/bash
+    lock-passwd: false
+    ssh_pwauth: True
+    chpasswd: { expire: False }
+package_update: true
+runcmd:
+  - [ apt, install, qemu-guest-agent, -y ]
+  - [ systemctl, enable, --now, qemu-guest-agent ]

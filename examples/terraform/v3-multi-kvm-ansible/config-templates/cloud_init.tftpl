@@ -1,0 +1,25 @@
+#cloud-config
+ssh_pwauth: True
+hostname: tfvm
+chpasswd:
+  list: |
+     student:password1
+  expire: False
+users:
+  - name: student
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    groups: users, admin
+    shell: /bin/bash
+    lock-passwd: false
+    ssh_authorized_keys:
+      - "${ssh_auth_key}"
+
+ssh_keys:
+  ed25519_private: "${ssh_private_key}"
+  ed25519_public: "${ssh_public_key}"
+
+ssh_deletekeys: false
+package_update: true
+runcmd:
+  - [ apt, install, qemu-guest-agent, -y ]
+  - [ systemctl, enable, --now, qemu-guest-agent ]

@@ -1,0 +1,10 @@
+- hosts:
+  - all
+  become: true
+  roles:
+    - role: docker
+      tags:
+        - install_docker
+    - role: apache
+      tags:
+        - install_apache
