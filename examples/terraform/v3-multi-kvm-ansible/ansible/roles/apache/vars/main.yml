@@ -1,0 +1,9 @@
+---
+# Vars for apache
+version: "1.0.0"
+
+files:
+  - name: "file1"
+    content: "File 1 content 21"
+  - name: "file2"
+    content: "File 2 content 2"

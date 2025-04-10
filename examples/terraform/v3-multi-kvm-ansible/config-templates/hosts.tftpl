@@ -1,0 +1,9 @@
+all:
+    hosts:
+%{ for vm in vms ~}
+        ${vm.name}:
+            ansible_ssh_host: "${vm.network_interface[0].addresses.1}"
+            ansible_ssh_private_key_file: "${path}/ansible/.ssh/id_rsa_${index(vms, vm)}"
+            ansible_ssh_public_key_file: "${path}/ansible/.ssh/id_rsa_${index(vms, vm)}.pub"
+            ansible_user: "student"
+%{ endfor }

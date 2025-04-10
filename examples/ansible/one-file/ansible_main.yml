@@ -1,0 +1,9 @@
+# run tasls
+- name: Ansible in one file
+  hosts: all
+  tasks:
+    - name: Copy file to hosts
+      ansible.builtin.copy:
+        src: ./hosts.yml
+        dest: /tmp/hosts_backup
+        mode: '0644'

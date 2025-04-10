@@ -1,0 +1,16 @@
+---
+# handlers file for apache
+- name: apache reload
+  service:
+    name: apache2
+    state: reloaded
+
+- name: apache reload
+  ansible.builtin.debug:
+    msg:
+    - "Apache is reloaded"
+
+- name: notify msg
+  ansible.builtin.debug:
+    msg:
+    - "Send msg"
